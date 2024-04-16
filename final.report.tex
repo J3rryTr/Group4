@@ -1,0 +1,410 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{graphicx}
+\graphicspath{ {images} }
+\renewcommand\IEEEkeywordsname{Keywords}
+\usepackage{caption}
+    \captionsetup[table]{font=small}
+\usepackage{fancyhdr}
+\usepackage{authblk}
+\usepackage{hyperref}
+\usepackage{biblatex}
+\addbibresource{reference.bib}
+\addbibresource{LSTM.bib}
+\addbibresource{bert.bib}
+\addbibresource{distill.bib}
+\addbibresource{deberta.bib}
+\addbibresource{roberta.bib}
+\addbibresource{approach.bib}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt} % removes the header line
+\fancyhead[R]{\textbf{\textit{\thepage}}} % makes the page number bold and italic
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+
+\title{Applying NER in Medical Records}
+\author{Tran The Trung}
+\author{Phan Thanh Binh}
+\author{Tran Minh Trung}
+\author{Chau Phan Phuong Mai}
+\affil{Data Science, University of Science and Technology of Hanoi}
+
+\maketitle
+\thispagestyle{fancy}
+
+% abtract 
+\begin{abstract}
+Health records are essential documents that contain valuable information about not only patient
+information but also the history of treatment. However, the availability of massive medical
+information needs to be processed and analyzed, which is time-consuming and requires lots of
+specialized knowledge. Therefore, in the study, we attempt to automate the extract
+information procedure from those documents following two approaches: BERT variations and bi-LSTM-CRF. MACCROBAT dataset is utilized to evaluate the performance of different models. The former approach, despite the simpler architecture design, shows better result.
+\end{abstract}
+
+% keywords
+\begin{IEEEkeywords}
+Electronic Health Records, Named Entity Recognition, BERT, LSTM.
+\end{IEEEkeywords}
+
+\section{Introduction}  \label{section1}
+In the biomedical field, health records are an essential document for informed
+decision-making. They contain information about a patient's medical history, such as
+his or her past diagnoses, medications, allergies, test results, etc. These documents
+exist for several reasons. Firstly, they provide a comprehensive overview of an
+individual's health background, which is crucial for healthcare providers to make
+precise decisions about the patient's future treatments. Secondly, they support the 
+patient's continuity of care between different healthcare facilities by ensuring that 
+everybody involved in the patient's care is on the same page, so that treatment is optimized 
+effectively. Moreover, it is also an important resource for researchers to find new treatments. 
+Thus, analyzing and gaining in-depth understanding from health records has long been a vital task. 
+To streamline this process, the healthcare industry has transitioned to electronic health 
+records (EHRs). This shift, evident 
+in the widespread adoption of EHRs by hospitals, facilitates easier accession and management 
+of patient data.
+
+However, that is not enough. Manually reading this document is labor-intensive since not only 
+specific domain knowledge is required but also high processing speed as these records are growing 
+in volume, variety, and complexity. One of many ways computers can help alleviate the burden on 
+human workloads is by swiftly and automatically extracting keywords. In this work, to achieve 
+such ability, we tried some deep learning models to carry out the Named Entity Recognition (NER) 
+task on text documents specialized in the biomedical field. The NER model is a type of artificial 
+intelligence (AI) program used in Natural Language Processing (NLP) tasks. Its job is to 
+identify and categorize words into specific, predefined entities within a text. In 
+the content of medical records, these entities include entities such as diseases and disorders, 
+medications, symptoms, and more. 
+Applying an NER model to medical records takes advantage of the fact that it extracts key 
+information faster, which saves time and increases performance for downstream tasks.
+
+The objective of this study is to implement a model that can automate extracting medical 
+information from EHRs using two named entity recognition approaches: sequence 
+labeling-based and span-based. The expected outcomes are demonstrated in Figure \ref{fig1}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\textwidth]{infer.png}
+    \caption{Example for the model’s output.}
+    \label{fig1}
+\end{figure}
+
+The remaining sections of the report are organized as follows:
+\begin{itemize}
+    \item Section \ref{section2} gives us the general view of some NER methods nowadays.
+    \item In section \ref{section3}, we presented the chosen dataset, along with our visualizations, 
+    analysis and the preprocessing steps conducted.
+    \item In section \ref{section4}, we illustrated the chosen models for the NER task.
+    \item In section \ref{section5}, we showed the perfomance evaluation of those models.
+\end{itemize}
+
+\section{Literature Review}  \label{section2}
+For Named Entity Recognition problem, people usually have two separate approaches which is
+sequence labeling-based methods and span-based methods.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.47\textwidth]{Sequence_labeling_and_span.png}
+    \caption{The sequence labeling-based and the span-based\cite{ji2022winwin}.}
+    \label{fig5}
+\end{figure}
+
+\paragraph{Span-based} This method will try to predict the start and end positions of
+each entity directly. So given a sentence, the output of the method would be a set of
+entity spans along with their corresponding labels. And thus, transformer-based models
+would be the appropriate candidates for this approach since they have the ability to
+handle a whole sentence in parallel and help us resolve the problem of nested or overlapping entities
+
+\paragraph{Sequence labeling-based} This method works on the problem by assigning labels
+to each individual token. In other words, each token will be assigned a label indicating
+its entity type and whether it is the beginning of the entity or not. RNN models and their
+variants like LSTM or GRU are some of the most typical ones that represent this approach
+for their strategy of executing sequentially token by token by maintaining a memory or state
+of previous inputs.
+
+For this project, we will be using BERT and its variants for span-based approach and a
+hybrid model of CNN-LSTM-CRF for the latter one.
+
+\section{Dataset} \label{section3}
+We utilized MACCROBAT\cite{Caufield2019}, one of the most common datasets for automated
+labeling (i.e. named entity recognition and relation extraction) purpose in biomedical
+documents. According to the authors, the dataset is the result of their innovative typing system
+for clinical texts which is able to accurately represent the variety of terms and events used
+in clinical records without demanding connections to organized concepts or terminology.
+200 clinical case reports (CCRs) are included with manual annotations in the standoff
+format\footnote{http://brat.nlplab.org/standoff.html}. However, the standard data format required
+for NER task is BIO tags \footnote{https://en.wikipedia.org/wiki/Inside-outside-beginning\_(tagging)}
+which means documents must be separated into tokens and each token must be assigned to a
+label of whether it is the beginning, inside or outside of the annotated entities. 
+Fortunately, this standardization task has already been done by an user in the Hugging Face
+community, result in this dataset \footnote{https://huggingface.co/datasets/ktgiahieu/maccrobat2018\_2020}
+which we used directly. The data will be split 90\% for training and 10\% for testing
+the model. Figure \ref{fig2} show an example of a document from the dataset. 
+\begin{figure}[h]
+    \includegraphics[width=0.47\textwidth]{example.png}
+    \caption{Example from the dataset.}
+    \label{fig2}
+\end{figure}
+
+\subsection{Visualization}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.47\textwidth]{hist.png}
+    \caption{Histogram of entities in the dataset.}
+    \label{fig3}
+\end{figure}
+We used the histogram Figure \ref{fig3} for showing all entities. There are 41 different
+special terms. Two of the most frequent entity are Sign\_symptom and 
+Diagnostic\_procedure. This can be easily explained since there should be the symptoms of
+the patients and also how they can treat it through diagnostic procedures.  
+
+
+In case of Figure \ref{fig4} illustrates the word clouds for the tokens composed the
+entities in the dataset.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.47\textwidth]{WordClouds.png}
+    \caption{Word Clouds of words in the dataset.}
+    \label{fig4}
+\end{figure}
+The word clouds provide insight into some of the most frequent words that appear in our dataset. 
+It can easily be seen that the largest words are medical terms such as CT, mass, or pain which
+are unsurprising for medical records
+
+\subsection{Preprocessing}
+To feed the list of tokens in Figure \ref{fig2} into the model, we need a way to represent them
+as vectors, this step is known as encoding or embedding. To carry out this, we used the 
+Byte Pair Encoding (BPE) technique \footnote{https://huggingface.co/learn/nlp-course/chapter6/5}. BPE maps tokens from the corpus
+to their indexes in the vocabulary, but the noticeable feature is that it can handle 
+out of vocabulary words with minimized reliance on the \emph{unknown} token by breaking 
+them down into known sub-word units until character level. This is beneficial when we want to 
+reduce the vocabulary size or fine tune a model with pretrained vocabulary.
+
+\section{Methods} \label{section4}
+
+\subsection{Span-based methods}
+\subsubsection{BERT\cite{devlin2019bert}}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{bert.png}
+    \caption{BERT's architecture.}
+    \label{fig:enter-label}
+\end{figure}
+
+\noindent In most cases, training the model from scratch in NLP is not feasible because of the
+complexity of the model and because of it, making use of a pre-training language model is one
+of the easiest ways to increase the overall performance. There are two main ways of implementing
+pre-trained model. One is the feature-based approach which applies a corresponding 
+architecture with a separate task to make use of the feature from a pre-trained model such as ELMo. 
+The other way is to train downstream tasks by fine-tuning all the parameters. This is called a
+fine-tuning approach with an outstanding example of GPT. However, both of these methods 
+use a unidirectional language model meaning the model only takes the previous token as the 
+input which is a huge constraint. And to resolve the problem, researchers have come up with 
+the idea of using the Masked Language Model (MLM). It works by masking some tokens and letting 
+the model predict the middle word based on the surrounding context. This new method has been 
+a huge breakthrough and it’s named Bidirectional Encoder Representations from Transformers (BERT).\\
+
+\noindent BERT framework consists of two steps. One is to pre-train on unlabeled data and then 
+we fine-tune on labeled data of the downstream task. A special point about BERT is that it makes 
+use of a single architecture for all of the tasks which minimizes the gap between 
+pre-trained architecture and final downstream architecture.
+
+\begin{itemize}
+    \item Pre-training: BERT use two unsupervised tasks: 
+\end{itemize}
+\noindent Mask LM: This procedure randomly masks some tokens by 15\%-symbol by a token called 
+[MASK] and then forces the model to predict it. However, this might create a difference in 
+fine-tuning datasets where there are no such kind of [MASK] tokens. To alleviate this, in 
+those 15\%-symbol chosen tokens, only 80\%-symbol of them were actually masked. 10\%-symbol 
+will be replaced by a random token while 10\%-symbol will remain intact. The model will 
+not know which token it needs to predict until the last layer so it has to remember the 
+contexts of all input tokens.
+\noindent Next Sentence Prediction (NSP): Not only is the connection between tokens, 
+but BERT also needs to learn the relationship between tokens for some specific downstream tasks. 
+In other words, the researchers have to train the model so as to it can learn to generate 
+from a corpus. More specifically, we will generate a pair of sentences A and B where B might 
+be the sentence right after A or a completely random sentence in a 50/50 probability and 
+the model will predict whether A and B are truly a pair of sentences.
+
+\begin{itemize}
+    \item Fine-tuning:
+\end{itemize}
+\noindent The fine-tuning task is simply to put the input and output and then fine-tune all 
+the parameters or in our case, we will fine-tune it on NER tasks which are on token levels. 
+\vspace{3mm}
+
+\subsubsection{DistilBERT\cite{sanh2020distilbert}} 
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{distill.png}
+    \caption{DistilBERT's architecture.}
+    \label{fig:enter-label}
+\end{figure}
+\noindent One problem with BERT is its huge complexity which requires high computational resources.
+Then how can we make it smaller and faster while still maintaining a comparable performance? For
+this, we have a variant called DistilBERT which makes use of knowledge distillation to transfer
+knowledge from a larger model to a smaller one.
+\noindent The intuition behind the distillation method is to have two models, one is a teacher model
+which is a large one that has been trained on a huge dataset. This will be used as a “guidance” for a
+smaller model called the student model which will be our main model of deployment. To do this,
+normally the student model will integrate a small part of the output from the teacher model instead
+of only the ground truth. In other words, we will try to force the student model to mimic the
+distribution to make it more similar to the teacher. This, in turn, alleviates the training process
+of the student model, making it more compact and requiring less computational resources.
+Additionally, the teacher model also creates what we call “soft targets” for the training process.
+Soft target having high entropy might give out more information which means the student can be more
+generalization in practical situations.
+\noindent Applying this idea to BERT, people have successfully created DistilBERT which generally has
+the same architecture as BERT but reduces the number of layers by a factor of 2. This creates a
+version of BERT that is more efficient while still being quite effective for various NLP tasks.
+
+\vspace{3mm}
+\subsubsection{RoBERTa\cite{liu2019roberta}} 
+\noindent Another variant of BERT is RoBERTa which stands for A Robustly Optimized BERT Pretraining
+Approach. It is designed based on the same architecture of BERT but integrates some advanced
+techniques to improve the overall performance.
+
+\begin{itemize}
+    \item Dynamic masking: The original BERT implements a static masking where we put the [MASK]
+    token in the same place every epoch and they avoid using the same mask by duplicating the
+    training data 10 times so that each sequence is masked in 10 different ways. Still, each training
+    sequence is seen with the same mask four times during the training procedure. RoBERTa uses a form
+    of dynamic masking where the masking pattern changes between training epochs. This helps the
+    model to generalize better by preventing it from memorizing the repeated patterns generated by the [MASK] token.
+    \item Next Sentence Prediction: Another change is that RoBERTa removes the NSP task during
+    pretraining which turns out to slightly improve the downstream task performance.
+    \item Large Mini-Batches: RoBERTa also uses a larger batch size which allows it to increase the parallelism and the efficient in training.
+    \item Hyperparameters Optimization: The RoBERTa researchers have found out the sensitivity of
+    training to the Adam epsilon term so they also focus on tuning it. They have changed some
+    parameters like peak learning rate or number of warmup steps. And lastly, RoBERTa is trained only with full-length sentences.
+    
+\end{itemize}
+
+\vspace{3mm}
+\subsubsection{DeBERTa\cite{he2021deberta}} 
+DeBERTa stands for Decoding-enhanced BERT with disentangled attention. This is the only
+variants that make some changes to the original architecture of BERT to imporve the
+attention mechanism and decoding process.
+
+\begin{itemize}
+    \item Disentangled Attention: In BERT or in most of the traditional Transformer-based
+    model, each word is represented using a content embedding and optionally adding a position
+    embedding. DeBERTa, on the other hand, introduces a disentangled attention mechanism that
+    separates the positional and content information of each token in the input layer. This adds more
+    information of the relationship between each token in a sentence
+    
+    \item Enhanced Mask Decoder: The disentangled attention mechanism already takes into account the
+    content and relative position of the token but not its absolute position. This is usually ignored
+    in most of the model but still quite crucial for the final prediction. DeBERTa solves this by
+    incorporating the embedding of this information right before the softmax layer.
+\end{itemize}
+
+\vspace{3mm}
+\subsection{Sequence labeling-based method}
+For this approach, we use a hybrid method of Bi-LSTM-CNN-CRF\cite{ma-hovy-2016-end}.
+This model contains three main components, which is showed in Figure \ref{fig6}.  
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{lstm_model.png}
+    \caption{The architechture of Bi-LSTM-CNN-CRF.}
+    \label{fig6}
+\end{figure}
+
+\paragraph{CNN} Convolutional Neural Network or CNN is often used in Computer Vision
+tasks since it can capture the spatial relationship between pixels of an image. And in
+this case, we will also make use of CNN to generate the character-level representation
+for each word. The intuition is that CNN will be able to know the spatial coherence
+across characters. Then, we use maxpool on top of this layer to extract meaningful
+features which will in the end give us a dense vector representation of each word. For
+the final embedding vector, we will concatenate the result with the pre-trained GloVe
+embeddings to create a unified representation for each word.
+
+\paragraph{Bi-LSTM} Long Short-Term Memory (LSTM) is a type of Recurrent Neural Network
+that was first designed to resolve the problem of long-term dependencies in data.
+Traditional RNN usually struggle with vanishing gradient when the model can not train
+on long sequences and LSTM handles it with the help of memory cells and some additional
+gates: forget gate, input gate, and output gate. The term "Bi" in front stands for
+Bidirectional which indicates that the information will travel both forward and
+backward, making it richer and potentially more informative.
+
+\paragraph{CRF} Continuous Random Field (CRF) is a probabilistic discriminative model
+which is usually used in prediction tasks for sequences. Unlike other predictive models
+for sequences, CRF does not require any independence assumptions or specific set of
+features. Thus, it can capture dependencies between input and output in a much more
+complex and flexible way. Conventional deep learning models designed for sequential
+input does a great job of constructing features as well as capturing reliance between
+input items by utilizing outputs of previous layers as input for current layer.
+However, they forget to take into account the order of the labels since each output is
+mapped to the desired label separately. Therefore, we can use CRF as an extension to
+existing LSTM model to capture that dependency. More specifically, CRF use \ref{eq:1}
+to predict the probabilistic score for the whole token sequence X with label sequence Y
+rather than each token-label pair individually.
+
+\begin{equation}
+p(Y|X) = \frac{\quad \exp(\sum\limits_{k=1}^{K} F_k(X,Y))} {\sum\limits_{Y \in Y'} \exp(\sum\limits_{k=1}^{K} F_k(X,Y'))}
+\label{eq:1}
+\end{equation}
+
+\vspace{4mm}
+\section{Evaluation} \label{section5}
+For the evaluation, we will use $F_1$ score to compute the model's accuracy. It is the
+trade-off between precision and recall which is highly useful in our case where the
+class distribution for NER is usually imbalance.
+\begin{equation}
+F_1 score = \frac{2 * Precision * Recall}{Precision + Recall}
+\label{eq:2}
+\end{equation}
+
+\begin{table}[h!]
+\centering
+\caption{$F_1 Score$ of different models.}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+CNN-LSTM-CRF & BERT & DistilBERT & RoBERTa & DeBERTa \\
+\hline
+0.865 & 0.818 & 0.782 & 0.82 & 0.84 \\
+\hline
+\end{tabular}
+\label{table1}
+\end{table}
+
+Surprisingly, the hybrid LSTM model surpasses all the BERT ones. This really shows the
+LSTM with the help of some other advanced techniques like CNN or CRF can still be
+compared to transformer-based models and it is not outdated yet. For the rest, DeBERTa
+and RoBERTa really show their improvements compared to the traditional model with some
+new techniques and research. And DistilBERT, unsurprisingly, performs the worst since
+it is the most compact model out of all of these but still maintains quite a good performance.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1\linewidth]{output.png}
+    \caption{Confusion matrix of Bi-LSTM-CNN-CRF model.}
+    \label{fig7}
+\end{figure}
+The Figure \ref{fig7} shows the details of our best-performing model. One noticeable
+point worth mentioning is that most of the mistakes made by the model are classifying
+the entity as O, or in other words, not being able to detect the entity. Meanwhile, the
+errors in misclassifying are quite low. For the rest of the matrix, most of the
+entities are predicted quite well and there's no huge error that should be investigated more in.
+
+\vspace{4mm}
+\section{Conclusion}
+In this project, we have been able to implement several state-of-the-art NER models and
+compare their performance on a medical dataset. In the end, we see that LSTM with the
+aid of some other models has been able to compete with some high-complexity transformer
+based models and produce quite a good result.
+
+\indent Still, there are some problems we are still struggling with during the project.
+First and foremost, training LLMs model is quite time-consuming and requires huge
+computational resources. And secondly, the limit of the diversity of the available
+dataset is also a constraint for us. And thus, in the future, we hope to find different
+methods apart from LLMs such as Graph Neural Networks, a promising approach for NER
+nowadays. Secondly, we will try to research and integrate more datasets to increase the
+number of detected entities while also focusing more on in-depth data in the field of medicine.
+
+\vspace{4mm}
+\printbibliography
+\end{document}
